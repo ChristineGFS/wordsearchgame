@@ -1,0 +1,3 @@
+﻿<Project>
+  <Import Project="..\build\WordSearch.props" />
+</Project>

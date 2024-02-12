@@ -1,0 +1,198 @@
+﻿@page "/wordsearch"
+
+@using System.Text
+@using System.Collections.Generic
+@using Microsoft.JSInterop
+
+<head>
+    <link href="css/game.css" rel="stylesheet">
+</head>
+
+<h1>Word Search</h1>
+
+<div class="grid">
+    
+    @for (int i = 0; i < 10; i++)
+    {
+        @for (int j = 0; j < 10; j++)
+        {
+            int row = i;
+            int col = j;
+            string cellClass = "cell";
+            if (selectedCells.Contains((row, col)) || guessedCells.Contains((row, col)))
+            {
+                cellClass += " selected";
+            }
+            <button class="@cellClass" @onclick="() => SelectCell(row, col)">@board[i, j]</button>
+        }
+    }
+</div>
+@if (words.Count == 0)
+{
+    <div class="win-message">YOU WON</div>
+}
+<div>
+    <h2>Words to find:</h2>
+    @foreach (var word in words)
+    {
+        <div>@word</div>
+    }
+</div>
+
+@code {
+    private char[,] board = new char[10, 10];
+    private List<string> words = new List<string> { "HELLO", "WORLD", "BLAZOR", "SEARCH" };
+    private StringBuilder currentWord = new StringBuilder();
+    private List<(int, int)> selectedCells = new List<(int, int)>();
+    private List<(int, int)> guessedCells = new List<(int, int)>();
+
+    protected override void OnInitialized()
+    {
+        var random = new Random();
+
+        // Place the words in the grid
+        foreach (var word in words)
+        {
+            bool placed = false;
+            while (!placed)
+            {
+                int startRow = random.Next(0, 10);
+                int startCol = random.Next(0, 10);
+                int direction = random.Next(0, 3); // 0 = horizontal, 1 = vertical, 2 = diagonal
+
+                if (CanPlaceWord(word, startRow, startCol, direction))
+                {
+                    PlaceWord(word, startRow, startCol, direction);
+                    placed = true;
+                }
+            }
+        }
+
+        // Fill the rest of the grid with random letters
+        for (int i = 0; i < 10; i++)
+        {
+            for (int j = 0; j < 10; j++)
+            {
+                if (board[i, j] == '\0') // If the cell is empty
+                {
+                    board[i, j] = (char)('A' + random.Next(0, 26));
+                }
+            }
+        }
+    }
+
+    private bool CanPlaceWord(string word, int startRow, int startCol, int direction)
+    {
+        // Check if the word fits in the grid in the chosen direction
+        int endRow = startRow;
+        int endCol = startCol;
+
+        switch (direction)
+        {
+            case 0: // horizontal
+                endCol += word.Length - 1;
+                break;
+            case 1: // vertical
+                endRow += word.Length - 1;
+                break;
+            case 2: // diagonal
+                endRow += word.Length - 1;
+                endCol += word.Length - 1;
+                break;
+        }
+
+        // Check if the end position is out of bounds
+        if (endRow >= 10 || endCol >= 10)
+        {
+            return false;
+        }
+
+        // Check if any of the cells in the path of the word are already occupied
+        for (int i = 0; i < word.Length; i++)
+        {
+            int row = startRow;
+            int col = startCol;
+
+            switch (direction)
+            {
+                case 0: // horizontal
+                    col += i;
+                    break;
+                case 1: // vertical
+                    row += i;
+                    break;
+                case 2: // diagonal
+                    row += i;
+                    col += i;
+                    break;
+            }
+
+            if (board[row, col] != '\0')
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private void PlaceWord(string word, int startRow, int startCol, int direction)
+    {
+        // Place the word in the grid
+        for (int i = 0; i < word.Length; i++)
+        {
+            int row = startRow;
+            int col = startCol;
+
+            switch (direction)
+            {
+                case 0: // horizontal
+                    col += i;
+                    break;
+                case 1: // vertical
+                    row += i;
+                    break;
+                case 2: // diagonal
+                    row += i;
+                    col += i;
+                    break;
+            }
+
+            board[row, col] = word[i];
+        }
+    }
+
+    private async void SelectCell(int i, int j)
+    {
+        // Check if the cell is already selected
+        if (selectedCells.Contains((i, j)))
+        {
+            return; // If the cell is already selected, do nothing
+        }
+
+        // Add the selected cell to the list of selected cells
+        selectedCells.Add((i, j));
+
+        // Build the current word from the selected cells
+        currentWord.Clear();
+        foreach (var (row, col) in selectedCells)
+        {
+            currentWord.Append(board[row, col]);
+        }
+
+        // Check if the current word is in the list of words
+        string currentWordStr = currentWord.ToString();
+        if (words.Contains(currentWordStr))
+        {
+            words = words.Where(word => word != currentWordStr).ToList(); // Create a new list without the guessed word
+            guessedCells.AddRange(selectedCells); // Add the selected cells to guessedCells
+            selectedCells.Clear(); // Clear the selected cells
+        }        
+    }
+    // Add a new method to clear the selection
+    private void ClearSelection()
+    {
+        selectedCells.Clear();
+        currentWord.Clear();
+    }
+}
